@@ -21,3 +21,17 @@ resource "azurerm_servicebus_queue" "orders" {
   requires_duplicate_detection            = true
   duplicate_detection_history_time_window = "PT10M"
 }
+
+resource "azurerm_servicebus_topic" "warehouse" {
+  name                = "warehouse"
+  namespace_id        = azurerm_servicebus_namespace.main.id
+  default_message_ttl = "P7D"
+}
+
+resource "azurerm_servicebus_subscription" "fulfilment" {
+  name                                 = "fulfilment"
+  topic_id                             = azurerm_servicebus_topic.warehouse.id
+  max_delivery_count                   = 5
+  lock_duration                        = "PT1M"
+  dead_lettering_on_message_expiration = true
+}

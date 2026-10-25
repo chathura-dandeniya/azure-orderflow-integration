@@ -5,7 +5,8 @@
     "$connections": { "type": "Object", "defaultValue": {} },
     "functionBaseUrl": { "type": "String" },
     "functionKey": { "type": "SecureString" },
-    "storageAccountName": { "type": "String" }
+    "storageAccountName": { "type": "String" },
+    "eventGridTopicEndpoint": { "type": "String" }
   },
   "triggers": {
     "When_an_order_arrives": {
@@ -69,9 +70,41 @@
         }
       }
     },
+
+    "Publish_order_event": {
+      "type": "Http",
+      "runAfter": { "Save_order": ["Succeeded"] },
+      "inputs": {
+        "method": "POST",
+        "uri": "@parameters('eventGridTopicEndpoint')",
+        "headers": { "Content-Type": "application/json" },
+        "body": [
+          {
+            "id": "@guid()",
+            "eventType": "@if(body('Check_inventory')?['approved'], 'OrderFlow.OrderApproved', 'OrderFlow.OrderRejected')",
+            "subject": "orders/@{body('Parse_order')?['customerId']}/@{body('Parse_order')?['orderId']}",
+            "eventTime": "@utcNow()",
+            "dataVersion": "1.0",
+            "data": {
+              "orderId": "@body('Parse_order')?['orderId']",
+              "customerId": "@body('Parse_order')?['customerId']",
+              "approved": "@body('Check_inventory')?['approved']",
+              "items": "@body('Parse_order')?['items']",
+              "inventory": "@body('Check_inventory')?['items']"
+            }
+          }
+        ],
+        "authentication": {
+          "type": "ManagedServiceIdentity",
+          "audience": "https://eventgrid.azure.net"
+        },
+        "retryPolicy": { "type": "exponential", "count": 3, "interval": "PT10S" }
+      }
+    },
+
     "Complete_message": {
       "type": "ApiConnection",
-      "runAfter": { "Save_order": ["Succeeded"] },
+      "runAfter": { "Publish_order_event": ["Succeeded"] },
       "inputs": {
         "host": { "connection": { "name": "@parameters('$connections')['servicebus']['connectionId']" } },
         "method": "delete",

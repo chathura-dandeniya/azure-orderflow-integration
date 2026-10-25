@@ -119,3 +119,25 @@ def check_inventory(req: func.HttpRequest) -> func.HttpResponse:
         status_code=200,
         mimetype="application/json",
     )
+
+
+# ---------------------------------------------------------------------------
+# NotifyCustomer — subscribed to the Event Grid topic. Simulates an email.
+# ---------------------------------------------------------------------------
+@app.event_grid_trigger(arg_name="event")
+def notify_customer(event: func.EventGridEvent) -> None:
+    data = event.get_json()
+    order_id = data.get("orderId")
+    customer_id = data.get("customerId")
+
+    if event.event_type == "OrderFlow.OrderApproved":
+        message = f"Hi {customer_id}, your order {order_id} is confirmed and on its way."
+    elif event.event_type == "OrderFlow.OrderRejected":
+        out_of_stock = [i["sku"] for i in data.get("inventory", []) if not i.get("inStock")]
+        message = f"Hi {customer_id}, order {order_id} could not be fulfilled. Out of stock: {', '.join(out_of_stock)}"
+    else:
+        logging.warning("NotifyCustomer: unexpected event type %s", event.event_type)
+        return
+
+    # In production this would call an email service (Azure Communication Services, SendGrid).
+    logging.info("NotifyCustomer: EMAIL TO %s | %s", customer_id, message)

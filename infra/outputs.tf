@@ -30,3 +30,7 @@ output "data_storage_account" {
 output "logic_app_name" {
   value = azapi_resource.order_processor.name
 }
+
+output "eventgrid_topic_endpoint" {
+  value = azurerm_eventgrid_topic.orders.endpoint
+}

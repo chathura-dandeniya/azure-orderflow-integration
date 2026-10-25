@@ -34,3 +34,16 @@ resource "azurerm_role_assignment" "dev_table_contributor" {
   principal_id         = data.azurerm_client_config.current.object_id
 }
 
+# Logic App -> can publish events to the Event Grid topic
+resource "azurerm_role_assignment" "logic_eg_sender" {
+  scope                = azurerm_eventgrid_topic.orders.id
+  role_definition_name = "EventGrid Data Sender"
+  principal_id         = azapi_resource.order_processor.identity[0].principal_id
+}
+
+# Event Grid topic -> can deliver events into Service Bus (for the warehouse topic)
+resource "azurerm_role_assignment" "eg_sb_sender" {
+  scope                = azurerm_servicebus_namespace.main.id
+  role_definition_name = "Azure Service Bus Data Sender"
+  principal_id         = azurerm_eventgrid_topic.orders.identity[0].principal_id
+}
