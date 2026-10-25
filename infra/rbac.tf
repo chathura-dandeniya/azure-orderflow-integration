@@ -47,3 +47,24 @@ resource "azurerm_role_assignment" "eg_sb_sender" {
   role_definition_name = "Azure Service Bus Data Sender"
   principal_id         = azurerm_eventgrid_topic.orders.identity[0].principal_id
 }
+
+# Developer (you) -> can create/read secrets
+resource "azurerm_role_assignment" "dev_kv_officer" {
+  scope                = azurerm_key_vault.main.id
+  role_definition_name = "Key Vault Secrets Officer"
+  principal_id         = data.azurerm_client_config.current.object_id
+}
+
+# APIM -> read-only on secrets
+resource "azurerm_role_assignment" "apim_kv_user" {
+  scope                = azurerm_key_vault.main.id
+  role_definition_name = "Key Vault Secrets User"
+  principal_id         = azurerm_api_management.main.identity[0].principal_id
+}
+
+# Logic App -> read-only on secrets
+resource "azurerm_role_assignment" "logic_kv_user" {
+  scope                = azurerm_key_vault.main.id
+  role_definition_name = "Key Vault Secrets User"
+  principal_id         = azapi_resource.order_processor.identity[0].principal_id
+}

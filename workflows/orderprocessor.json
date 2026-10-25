@@ -4,7 +4,7 @@
   "parameters": {
     "$connections": { "type": "Object", "defaultValue": {} },
     "functionBaseUrl": { "type": "String" },
-    "functionKey": { "type": "SecureString" },
+    
     "storageAccountName": { "type": "String" },
     "eventGridTopicEndpoint": { "type": "String" }
   },
@@ -38,20 +38,46 @@
         }
       }
     },
-    "Check_inventory": {
-      "type": "Http",
+
+
+    "Get_function_key": {
+      "type": "ApiConnection",
       "runAfter": { "Parse_order": ["Succeeded"] },
       "inputs": {
-        "method": "POST",
-        "uri": "@{parameters('functionBaseUrl')}/api/inventory/check",
-        "headers": {
-          "Content-Type": "application/json",
-          "x-functions-key": "@parameters('functionKey')"
-        },
-        "body": "@body('Parse_order')",
-        "retryPolicy": { "type": "exponential", "count": 3, "interval": "PT10S" }
+        "host": { "connection": { "name": "@parameters('$connections')['keyvault']['connectionId']" } },
+        "method": "get",
+        "path": "/secrets/@{encodeURIComponent('func-host-key')}/value"
+      },
+      "runtimeConfiguration": {
+        "secureData": { "properties": ["inputs", "outputs"] }
       }
     },
+
+    "Check_inventory": {
+  "type": "Http",
+  "runAfter": {
+    "Get_function_key": ["Succeeded"]
+  },
+  "inputs": {
+    "method": "POST",
+    "uri": "@{parameters('functionBaseUrl')}/api/inventory/check",
+    "headers": {
+      "Content-Type": "application/json",
+      "x-functions-key": "@body('Get_function_key')?['value']"
+    },
+    "body": "@body('Parse_order')",
+    "retryPolicy": {
+      "type": "exponential",
+      "count": 3,
+      "interval": "PT10S"
+    }
+  },
+  "runtimeConfiguration": {
+    "secureData": {
+      "properties": ["inputs"]
+    }
+  }
+},
     "Save_order": {
       "type": "ApiConnection",
       "runAfter": { "Check_inventory": ["Succeeded"] },

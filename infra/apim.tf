@@ -19,14 +19,16 @@ data "azurerm_function_app_host_keys" "main" {
   resource_group_name = azurerm_resource_group.main.name
 }
 
+/*
 resource "azurerm_api_management_named_value" "func_key" {
   name                = "func-host-key"
   display_name        = "func-host-key"
   api_management_name = azurerm_api_management.main.name
   resource_group_name = azurerm_resource_group.main.name
   secret              = true
-  value               = data.azurerm_function_app_host_keys.main.default_function_key
+  # value               = data.azurerm_function_app_host_keys.main.default_function_key
 }
+*/
 
 # Backend = the Function App. APIM adds the key header on every call.
 resource "azurerm_api_management_backend" "func" {
@@ -42,3 +44,19 @@ resource "azurerm_api_management_backend" "func" {
     }
   }
 }
+
+
+resource "azurerm_api_management_named_value" "func_key" {
+  name                = "func-host-key"
+  display_name        = "func-host-key"
+  api_management_name = azurerm_api_management.main.name
+  resource_group_name = azurerm_resource_group.main.name
+  secret              = true
+
+  value_from_key_vault {
+    secret_id = azurerm_key_vault_secret.func_host_key.versionless_id
+  }
+
+  depends_on = [azurerm_role_assignment.apim_kv_user]
+}
+

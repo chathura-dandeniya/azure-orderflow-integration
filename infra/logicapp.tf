@@ -84,12 +84,46 @@ resource "azapi_resource" "order_processor" {
                 authentication = { type = "ManagedServiceIdentity" }
               }
             }
+
+
+            keyvault = {
+              connectionId   = azapi_resource.conn_keyvault.id
+              connectionName = azapi_resource.conn_keyvault.name
+              id             = "${local.managed_api_base}/keyvault"
+              connectionProperties = {
+                authentication = { type = "ManagedServiceIdentity" }
+              }
+            }
+
           }
         }
         functionBaseUrl        = { value = "https://${azurerm_linux_function_app.main.default_hostname}" }
-        functionKey            = { value = data.azurerm_function_app_host_keys.main.default_function_key }
+        # functionKey            = { value = data.azurerm_function_app_host_keys.main.default_function_key }
         storageAccountName     = { value = azurerm_storage_account.data.name }
         eventGridTopicEndpoint = { value = azurerm_eventgrid_topic.orders.endpoint }
+      }
+    }
+  }
+}
+
+resource "azapi_resource" "conn_keyvault" {
+  type      = "Microsoft.Web/connections@2016-06-01"
+  name      = "keyvault-mi"
+  location  = azurerm_resource_group.main.location
+  parent_id = azurerm_resource_group.main.id
+  tags      = var.tags
+
+  schema_validation_enabled = false
+
+  body = {
+    properties = {
+      displayName = "Key Vault (managed identity)"
+      api         = { id = "${local.managed_api_base}/keyvault" }
+      parameterValueSet = {
+        name = "oauthMI"
+        values = {
+          vaultName = { value = azurerm_key_vault.main.name }
+        }
       }
     }
   }
