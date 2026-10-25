@@ -41,10 +41,8 @@ resource "azapi_resource" "conn_tables" {
       displayName = "Azure Tables (managed identity)"
       api         = { id = "${local.managed_api_base}/azuretables" }
       parameterValueSet = {
-        name = "managedIdentityAuth"
-        values = {
-          storageaccount = { value = azurerm_storage_account.data.name }
-        }
+        name   = "managedIdentityAuth"
+        values = {}
       }
     }
   }
@@ -65,16 +63,33 @@ resource "azapi_resource" "order_processor" {
 
   body = {
     properties = {
-      state = "Enabled"
-      definition = {
-        "$schema"      = "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#"
-        contentVersion = "1.0.0.0"
-        parameters     = {}
-        triggers       = {}
-        actions        = {}
-        outputs        = {}
+      state      = "Enabled"
+      definition = jsondecode(file("${path.module}/../workflows/orderprocessor.json"))
+      parameters = {
+        "$connections" = {
+          value = {
+            servicebus = {
+              connectionId   = azapi_resource.conn_servicebus.id
+              connectionName = azapi_resource.conn_servicebus.name
+              id             = "${local.managed_api_base}/servicebus"
+              connectionProperties = {
+                authentication = { type = "ManagedServiceIdentity" }
+              }
+            }
+            azuretables = {
+              connectionId   = azapi_resource.conn_tables.id
+              connectionName = azapi_resource.conn_tables.name
+              id             = "${local.managed_api_base}/azuretables"
+              connectionProperties = {
+                authentication = { type = "ManagedServiceIdentity" }
+              }
+            }
+          }
+        }
+        functionBaseUrl    = { value = "https://${azurerm_linux_function_app.main.default_hostname}" }
+        functionKey        = { value = data.azurerm_function_app_host_keys.main.default_function_key }
+        storageAccountName = { value = azurerm_storage_account.data.name }
       }
-      parameters = {}
     }
   }
 }

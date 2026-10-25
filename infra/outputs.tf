@@ -22,3 +22,11 @@ output "apim_test_subscription_key" {
   value     = azurerm_api_management_subscription.test_client.primary_key
   sensitive = true
 }
+
+output "data_storage_account" {
+  value = azurerm_storage_account.data.name
+}
+
+output "logic_app_name" {
+  value = azapi_resource.order_processor.name
+}

@@ -27,3 +27,10 @@ resource "azurerm_role_assignment" "logic_table_contributor" {
   role_definition_name = "Storage Table Data Contributor"
   principal_id         = azapi_resource.order_processor.identity[0].principal_id
 }
+
+resource "azurerm_role_assignment" "dev_table_contributor" {
+  scope                = azurerm_storage_account.data.id
+  role_definition_name = "Storage Table Data Contributor"
+  principal_id         = data.azurerm_client_config.current.object_id
+}
+

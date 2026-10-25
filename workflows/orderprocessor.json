@@ -1,0 +1,88 @@
+{
+  "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "$connections": { "type": "Object", "defaultValue": {} },
+    "functionBaseUrl": { "type": "String" },
+    "functionKey": { "type": "SecureString" },
+    "storageAccountName": { "type": "String" }
+  },
+  "triggers": {
+    "When_an_order_arrives": {
+      "type": "ApiConnection",
+      "recurrence": { "frequency": "Minute", "interval": 1 },
+      "inputs": {
+        "host": { "connection": { "name": "@parameters('$connections')['servicebus']['connectionId']" } },
+        "method": "get",
+        "path": "/@{encodeURIComponent(encodeURIComponent('orders'))}/messages/head/peek",
+        "queries": { "queueType": "Main" }
+      }
+    }
+  },
+  "actions": {
+    "Parse_order": {
+      "type": "ParseJson",
+      "runAfter": {},
+      "inputs": {
+        "content": "@json(base64ToString(triggerBody()?['ContentData']))",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "orderId": { "type": "string" },
+            "customerId": { "type": "string" },
+            "items": { "type": "array" },
+            "receivedAt": { "type": "string" },
+            "status": { "type": "string" }
+          }
+        }
+      }
+    },
+    "Check_inventory": {
+      "type": "Http",
+      "runAfter": { "Parse_order": ["Succeeded"] },
+      "inputs": {
+        "method": "POST",
+        "uri": "@{parameters('functionBaseUrl')}/api/inventory/check",
+        "headers": {
+          "Content-Type": "application/json",
+          "x-functions-key": "@parameters('functionKey')"
+        },
+        "body": "@body('Parse_order')",
+        "retryPolicy": { "type": "exponential", "count": 3, "interval": "PT10S" }
+      }
+    },
+    "Save_order": {
+      "type": "ApiConnection",
+      "runAfter": { "Check_inventory": ["Succeeded"] },
+      "inputs": {
+        "host": { "connection": { "name": "@parameters('$connections')['azuretables']['connectionId']" } },
+        "method": "post",
+        "path": "/v2/storageAccounts/@{encodeURIComponent(encodeURIComponent(parameters('storageAccountName')))}/tables/@{encodeURIComponent('orders')}/entities",
+        "body": {
+          "PartitionKey": "@body('Parse_order')?['customerId']",
+          "RowKey": "@body('Parse_order')?['orderId']",
+          "Status": "@if(body('Check_inventory')?['approved'], 'Approved', 'Rejected')",
+          "ReceivedAt": "@body('Parse_order')?['receivedAt']",
+          "ProcessedAt": "@utcNow()",
+          "Items": "@string(body('Parse_order')?['items'])",
+          "InventoryResult": "@string(body('Check_inventory')?['items'])"
+        }
+      }
+    },
+    "Complete_message": {
+      "type": "ApiConnection",
+      "runAfter": { "Save_order": ["Succeeded"] },
+      "inputs": {
+        "host": { "connection": { "name": "@parameters('$connections')['servicebus']['connectionId']" } },
+        "method": "delete",
+        "path": "/@{encodeURIComponent(encodeURIComponent('orders'))}/messages/complete",
+        "queries": {
+          "lockToken": "@triggerBody()?['LockToken']",
+          "queueType": "Main",
+          "sessionId": ""
+        }
+      }
+    }
+  },
+  "outputs": {}
+}
