@@ -86,6 +86,12 @@ resource "azurerm_api_management_api_operation_policy" "create_order" {
     <policies>
       <inbound>
         <base />
+         <rate-limit calls="10" renewal-period="60" />
+
+        <validate-content unspecified-content-type-action="prevent" max-size="4096" size-exceeded-action="prevent">
+          <content type="application/json" validate-as="json" action="prevent" />
+        </validate-content>
+
         <set-backend-service backend-id="${azurerm_api_management_backend.func.name}" />
         <rewrite-uri template="/orders" />
       </inbound>

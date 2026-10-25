@@ -78,3 +78,44 @@ def _error(status: int, message: str) -> func.HttpResponse:
         status_code=status,
         mimetype="application/json",
     )
+
+
+# ---------------------------------------------------------------------------
+# CheckInventory — called by the Logic App. Simulates a stock system.
+# ---------------------------------------------------------------------------
+INVENTORY = {
+    "BOOK-01": 25,
+    "PEN-05": 500,
+    "MUG-07": 0,       # out of stock -> order will be rejected
+    "X": 10,
+}
+
+
+@app.route(route="inventory/check", methods=["POST"], auth_level=func.AuthLevel.FUNCTION)
+def check_inventory(req: func.HttpRequest) -> func.HttpResponse:
+    """Return whether every item in the order is in stock."""
+    try:
+        body = req.get_json()
+    except ValueError:
+        return _error(400, "Request body must be valid JSON")
+
+    items = body.get("items", [])
+    if not isinstance(items, list) or not items:
+        return _error(400, "items must be a non-empty list")
+
+    results = []
+    all_in_stock = True
+    for item in items:
+        sku = item.get("sku", "")
+        qty = int(item.get("qty", 0))
+        available = INVENTORY.get(sku, 0)
+        in_stock = available >= qty
+        all_in_stock = all_in_stock and in_stock
+        results.append({"sku": sku, "requested": qty, "available": available, "inStock": in_stock})
+
+    logging.info("CheckInventory: order %s approved=%s", body.get("orderId"), all_in_stock)
+    return func.HttpResponse(
+        json.dumps({"orderId": body.get("orderId"), "approved": all_in_stock, "items": results}),
+        status_code=200,
+        mimetype="application/json",
+    )
