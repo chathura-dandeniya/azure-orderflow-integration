@@ -142,6 +142,8 @@ def notify_customer(event: func.EventGridEvent) -> None:
     # In production this would call an email service (Azure Communication Services, SendGrid).
     logging.info("NotifyCustomer: EMAIL TO %s | %s", customer_id, message)
 
+    
+
 # ---------------------------------------------------------------------------
 # DeadLetterHandler — drains orders/$DeadLetterQueue and records the failure.
 # ---------------------------------------------------------------------------

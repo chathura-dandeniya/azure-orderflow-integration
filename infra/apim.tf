@@ -38,6 +38,7 @@ resource "azurerm_api_management_backend" "func" {
   resource_group_name = azurerm_resource_group.main.name
   protocol            = "http"
   url                 = "https://${azurerm_linux_function_app.main.default_hostname}/api"
+  depends_on          = [azurerm_api_management_named_value.func_key]
 
   credentials {
     header = {
