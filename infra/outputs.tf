@@ -13,3 +13,12 @@ output "function_app_hostname" {
 output "servicebus_namespace" {
   value = azurerm_servicebus_namespace.main.name
 }
+
+output "apim_gateway_url" {
+  value = azurerm_api_management.main.gateway_url
+}
+
+output "apim_test_subscription_key" {
+  value     = azurerm_api_management_subscription.test_client.primary_key
+  sensitive = true
+}
