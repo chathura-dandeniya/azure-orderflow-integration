@@ -38,3 +38,8 @@ variable "deploy_function_subscriptions" {
   type        = bool
   default     = false
 }
+
+variable "admin_object_ids" {
+  description = "Entra object IDs that get developer/operator data-plane access (you + the CI service principal)"
+  type        = set(string)
+}
