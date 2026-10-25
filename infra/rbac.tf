@@ -82,3 +82,12 @@ resource "azurerm_role_assignment" "func_table_contributor" {
   role_definition_name = "Storage Table Data Contributor"
   principal_id         = azurerm_linux_function_app.main.identity[0].principal_id
 }
+
+# Role assignments take 1-2 minutes to become effective
+resource "time_sleep" "kv_rbac_propagation" {
+  depends_on = [
+    azurerm_role_assignment.dev_kv_officer,
+    azurerm_role_assignment.apim_kv_user,
+  ]
+  create_duration = "90s"
+}

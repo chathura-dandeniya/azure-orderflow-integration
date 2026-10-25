@@ -17,6 +17,7 @@ resource "azurerm_api_management" "main" {
 data "azurerm_function_app_host_keys" "main" {
   name                = azurerm_linux_function_app.main.name
   resource_group_name = azurerm_resource_group.main.name
+  depends_on          = [time_sleep.function_host_ready]
 }
 
 /*
@@ -57,6 +58,6 @@ resource "azurerm_api_management_named_value" "func_key" {
     secret_id = azurerm_key_vault_secret.func_host_key.versionless_id
   }
 
-  depends_on = [azurerm_role_assignment.apim_kv_user]
+  depends_on = [time_sleep.kv_rbac_propagation]
 }
 

@@ -18,6 +18,7 @@ resource "azurerm_eventgrid_topic" "orders" {
 resource "azurerm_eventgrid_event_subscription" "notify_customer" {
   name  = "evgs-notify-customer"
   scope = azurerm_eventgrid_topic.orders.id
+  count = var.deploy_function_subscriptions ? 1 : 0
 
   azure_function_endpoint {
     function_id                       = "${azurerm_linux_function_app.main.id}/functions/notify_customer"

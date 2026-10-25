@@ -56,3 +56,9 @@ resource "azurerm_linux_function_app" "main" {
 
   tags = var.tags
 }
+
+# The host needs ~1 minute after creation before its keys can be read
+resource "time_sleep" "function_host_ready" {
+  depends_on      = [azurerm_linux_function_app.main]
+  create_duration = "60s"
+}

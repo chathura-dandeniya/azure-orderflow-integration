@@ -17,5 +17,5 @@ resource "azurerm_key_vault_secret" "func_host_key" {
   key_vault_id = azurerm_key_vault.main.id
   content_type = "text/plain"
 
-  depends_on = [azurerm_role_assignment.dev_kv_officer]
+  depends_on = [time_sleep.kv_rbac_propagation]
 }

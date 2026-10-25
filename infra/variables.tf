@@ -32,3 +32,9 @@ variable "alert_email" {
   type        = string
   default     = "chaturadh@gmail.com"
 }
+
+variable "deploy_function_subscriptions" {
+  description = "Create Event Grid subscriptions that target Functions. Set true only after the Function code is deployed."
+  type        = bool
+  default     = false
+}
