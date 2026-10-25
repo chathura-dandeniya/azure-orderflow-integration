@@ -68,3 +68,17 @@ resource "azurerm_role_assignment" "logic_kv_user" {
   role_definition_name = "Key Vault Secrets User"
   principal_id         = azapi_resource.order_processor.identity[0].principal_id
 }
+
+# Function App -> can receive from Service Bus (for the DLQ handler)
+resource "azurerm_role_assignment" "func_sb_receiver" {
+  scope                = azurerm_servicebus_namespace.main.id
+  role_definition_name = "Azure Service Bus Data Receiver"
+  principal_id         = azurerm_linux_function_app.main.identity[0].principal_id
+}
+
+# Function App -> can write Failed rows to the orders table
+resource "azurerm_role_assignment" "func_table_contributor" {
+  scope                = azurerm_storage_account.data.id
+  role_definition_name = "Storage Table Data Contributor"
+  principal_id         = azurerm_linux_function_app.main.identity[0].principal_id
+}

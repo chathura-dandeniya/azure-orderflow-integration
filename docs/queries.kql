@@ -1,0 +1,16 @@
+// Function executions by name, last 24h
+requests
+| where timestamp > ago(1d)
+| summarize count(), failures = countif(success == false) by name
+
+// Customer notifications sent
+traces
+| where message startswith "NotifyCustomer: EMAIL TO"
+| project timestamp, message
+| order by timestamp desc
+
+// Dead-letter events
+traces
+| where message startswith "DeadLetterHandler"
+| project timestamp, message
+| order by timestamp desc

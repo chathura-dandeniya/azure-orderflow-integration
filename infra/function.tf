@@ -46,10 +46,12 @@ resource "azurerm_linux_function_app" "main" {
   }
 
   app_settings = {
-    "FUNCTIONS_WORKER_RUNTIME"              = "python"
-    "SERVICEBUS_FQDN"                       = "${azurerm_servicebus_namespace.main.name}.servicebus.windows.net"
-    "ORDERS_QUEUE_NAME"                     = azurerm_servicebus_queue.orders.name
-    "APPLICATIONINSIGHTS_CONNECTION_STRING" = azurerm_application_insights.main.connection_string
+    "FUNCTIONS_WORKER_RUNTIME"                      = "python"
+    "SERVICEBUS_FQDN"                               = "${azurerm_servicebus_namespace.main.name}.servicebus.windows.net"
+    "ORDERS_QUEUE_NAME"                             = azurerm_servicebus_queue.orders.name
+    "APPLICATIONINSIGHTS_CONNECTION_STRING"         = azurerm_application_insights.main.connection_string
+    "ServiceBusConnection__fullyQualifiedNamespace" = "${azurerm_servicebus_namespace.main.name}.servicebus.windows.net"
+    "DATA_STORAGE_ACCOUNT"                          = azurerm_storage_account.data.name
   }
 
   tags = var.tags

@@ -141,3 +141,53 @@ def notify_customer(event: func.EventGridEvent) -> None:
 
     # In production this would call an email service (Azure Communication Services, SendGrid).
     logging.info("NotifyCustomer: EMAIL TO %s | %s", customer_id, message)
+
+# ---------------------------------------------------------------------------
+# DeadLetterHandler — drains orders/$DeadLetterQueue and records the failure.
+# ---------------------------------------------------------------------------
+from azure.data.tables import TableServiceClient, UpdateMode
+
+
+@app.service_bus_queue_trigger(
+    arg_name="msg",
+    queue_name="orders/$DeadLetterQueue",
+    connection="ServiceBusConnection",
+)
+def dead_letter_handler(msg: func.ServiceBusMessage) -> None:
+    message_id = msg.message_id or "unknown"
+    reason = getattr(msg, "dead_letter_reason", None) or "Unknown"
+    description = getattr(msg, "dead_letter_error_description", None) or ""
+    raw_body = msg.get_body().decode("utf-8", errors="replace")
+
+    logging.error(
+        "DeadLetterHandler: message %s dead-lettered. reason=%s detail=%s body=%s",
+        message_id, reason, description, raw_body[:500],
+    )
+
+    # Try to recover the ids from the body; fall back to the message id
+    try:
+        order = json.loads(raw_body)
+        partition_key = order.get("customerId", "unknown")
+        row_key = order.get("orderId", message_id)
+    except (ValueError, AttributeError):
+        partition_key = "unknown"
+        row_key = message_id
+
+    account = os.environ["DATA_STORAGE_ACCOUNT"]
+    service = TableServiceClient(
+        endpoint=f"https://{account}.table.core.windows.net",
+        credential=DefaultAzureCredential(),
+    )
+    table = service.get_table_client("orders")
+    table.upsert_entity(
+        mode=UpdateMode.REPLACE,
+        entity={
+            "PartitionKey": partition_key,
+            "RowKey": row_key,
+            "Status": "Failed",
+            "FailureReason": reason,
+            "FailureDetail": description[:1000],
+            "RawBody": raw_body[:1000],
+            "ProcessedAt": datetime.now(timezone.utc).isoformat(),
+        },
+    )

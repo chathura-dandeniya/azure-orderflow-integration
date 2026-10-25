@@ -97,7 +97,7 @@ resource "azapi_resource" "order_processor" {
 
           }
         }
-        functionBaseUrl        = { value = "https://${azurerm_linux_function_app.main.default_hostname}" }
+        functionBaseUrl = { value = "https://${azurerm_linux_function_app.main.default_hostname}" }
         # functionKey            = { value = data.azurerm_function_app_host_keys.main.default_function_key }
         storageAccountName     = { value = azurerm_storage_account.data.name }
         eventGridTopicEndpoint = { value = azurerm_eventgrid_topic.orders.endpoint }

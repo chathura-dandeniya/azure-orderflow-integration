@@ -26,3 +26,9 @@ variable "tags" {
     owner       = "chathura Dandeniya"
   }
 }
+
+variable "alert_email" {
+  description = "Email address that receives operational alerts"
+  type        = string
+  default     = "chaturadh@gmail.com"
+}
