@@ -1,0 +1,102 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "infra/**"
+      - "workflows/**"
+      - "src/**"
+      - ".github/workflows/deploy.yml"
+  workflow_dispatch:
+    inputs:
+      bootstrap:
+        description: "Fresh environment: build infra, deploy code, then enable Function subscriptions"
+        type: boolean
+        default: false
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  ARM_USE_OIDC: "true"
+  ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+  ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+  ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  TF_IN_AUTOMATION: "true"
+
+jobs:
+  infra:
+    name: Terraform apply
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra
+    outputs:
+      function_app_name: ${{ steps.out.outputs.function_app_name }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.14.7"
+          terraform_wrapper: false
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - run: terraform init -input=false
+      - name: Apply
+        run: |
+          terraform apply -input=false -auto-approve \
+            -var="deploy_function_subscriptions=${{ inputs.bootstrap != true }}"
+      - id: out
+        run: echo "function_app_name=$(terraform output -raw function_app_name)" >> "$GITHUB_OUTPUT"
+
+  functions:
+    name: Deploy Function code
+    needs: infra
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ needs.infra.outputs.function_app_name }}
+          package: src/functions
+          scm-do-build-during-deployment: true
+          enable-oryx-build: true
+          respect-funcignore: true
+
+  finalize:
+    name: Enable Function subscriptions (bootstrap only)
+    if: ${{ inputs.bootstrap == true }}
+    needs: [infra, functions]
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.14.7"
+          terraform_wrapper: false
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    
+      - run: terraform init -input=false
+      - run: |
+          terraform apply -input=false -auto-approve \
+            -var="deploy_function_subscriptions=true"
